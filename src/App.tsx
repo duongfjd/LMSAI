@@ -40,13 +40,15 @@ import {
   Frown,
   PartyPopper,
   X,
-  Edit2
+  Edit2,
+  Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const { user, loading, authError, login, signOut, clearError, updateRole, resetProfileSetup } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [userResults, setUserResults] = useState<QuizResult[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
@@ -159,7 +161,7 @@ export default function App() {
           <div className="w-14 h-14 bg-white/50 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-white/60">
             <GraduationCap className="w-7 h-7 text-indigo-900" />
           </div>
-          <h1 className="text-xl font-black text-indigo-950 mb-1 tracking-tight">TLU AI LMS</h1>
+          <h1 className="text-xl font-black text-indigo-950 mb-1 tracking-tight">Tlu Smart Learning</h1>
           <p className="text-xs text-indigo-900/80 mb-6 font-semibold uppercase tracking-wider">Cổng Học Tập Trực Tuyến</p>
           
           {authError && (
@@ -193,7 +195,10 @@ export default function App() {
 
   const SidebarItem = ({ id, icon: Icon, label }: { id: string, icon: any, label: string }) => (
     <button
-      onClick={() => setActiveTab(id)}
+      onClick={() => {
+        setActiveTab(id);
+        setIsSidebarOpen(false);
+      }}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
         activeTab === id 
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
@@ -207,13 +212,33 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar Backdrop Overlay on Mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-gray-100 p-6 flex flex-col gap-8 shrink-0">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-            <GraduationCap className="w-6 h-6 text-white" />
+      <aside className={`fixed md:relative inset-y-0 left-0 w-72 bg-white border-r border-gray-100 p-6 flex flex-col gap-8 shrink-0 z-50 transform md:transform-none transition-transform duration-300 ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      }`}>
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+              <GraduationCap className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-black text-gray-900 leading-none">Tlu Smart Learning</span>
           </div>
-          <span className="text-xl font-black text-gray-900">AI LMS</span>
+          {/* Close button on mobile */}
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1 text-gray-400 hover:text-gray-600 md:hidden"
+            title="Đóng menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -248,19 +273,28 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-20 bg-white border-b border-gray-100 px-8 flex items-center justify-between shrink-0">
-          <div className="relative w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm lớp học, tài liệu..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
-            />
+        <header className="h-20 bg-white border-b border-gray-100 px-4 md:px-8 flex items-center justify-between shrink-0 gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl md:hidden shrink-0"
+              title="Mở menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div className="relative w-40 sm:w-64 md:w-96 hidden sm:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm lớp học, tài liệu..."
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 md:gap-6 ml-auto shrink-0">
             {isAdmin && (
-              <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
+              <div className="hidden lg:flex items-center gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100 shrink-0">
                 <span className="text-[10px] font-bold text-gray-400 px-2 uppercase">Test Role:</span>
                 {(['admin', 'teacher', 'student'] as const).map((r) => (
                   <button
@@ -276,17 +310,18 @@ export default function App() {
               </div>
             )}
             <button className="relative p-2 text-gray-400 hover:text-gray-600">
-              <Bell className="w-6 h-6" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              <Bell className="w-5 h-5 md:w-6 h-6" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
-            <div className="flex items-center gap-3 pl-6 border-l border-gray-100 relative group">
-              <div className="text-right">
-                <p className="text-sm font-bold text-gray-900">{user.displayName}</p>
-                <p className="text-xs text-gray-400 capitalize">{user.role}</p>
+            
+            <div className="flex items-center gap-2 md:gap-3 pl-3 md:pl-6 border-l border-gray-100 relative group">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-gray-900 line-clamp-1">{user.displayName}</p>
+                <p className="text-xs text-gray-400 capitalize">{user.role === 'student' ? 'Sinh viên' : user.role === 'teacher' ? 'Giảng viên' : 'Admin'}</p>
               </div>
               <button 
                 onClick={() => setActiveTab('profile')}
-                className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold hover:ring-2 hover:ring-blue-500 transition-all overflow-hidden"
+                className="w-8 h-8 md:w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold hover:ring-2 hover:ring-blue-500 transition-all overflow-hidden shrink-0"
               >
                 {user.photoURL ? (
                   <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -299,7 +334,7 @@ export default function App() {
         </header>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-8 relative">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 relative">
           {/* Decorative background elements for content area */}
           <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
             <div className="absolute top-20 right-10 w-64 h-64 bg-red-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
@@ -308,25 +343,25 @@ export default function App() {
 
           <div className="relative z-10">
             {activeTab === 'dashboard' && (
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-10 rounded-3xl text-white shadow-xl relative overflow-hidden">
+              <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 md:p-10 rounded-2xl md:rounded-3xl text-white shadow-xl relative overflow-hidden">
                   <div className="relative z-10">
-                    <h1 className="text-4xl font-black mb-4 flex items-center gap-3">
+                    <h1 className="text-2xl md:text-4xl font-black mb-3 md:mb-4 flex flex-wrap items-center gap-2">
                       Chào mừng trở lại, {user.displayName}!
                     </h1>
-                    <p className="text-xl text-blue-100 font-medium opacity-90 italic">
+                    <p className="text-base md:text-xl text-blue-100 font-medium opacity-90 italic">
                       "Học tập, học tập nữa, học tập mãi"
                     </p>
-                    <div className="mt-8 flex gap-4">
+                    <div className="mt-6 md:mt-8 flex flex-wrap gap-3 md:gap-4">
                       <button 
                         onClick={() => setActiveTab('quizzes')}
-                        className="px-6 py-3 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all shadow-lg"
+                        className="px-4 md:px-6 py-2.5 md:py-3 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all shadow-lg text-sm md:text-base"
                       >
                         Vào làm Quiz ngay
                       </button>
                       <button 
                         onClick={() => setActiveTab('resource-hub')}
-                        className="px-6 py-3 bg-blue-500/30 text-white border border-white/20 rounded-xl font-bold hover:bg-blue-500/40 transition-all backdrop-blur-sm"
+                        className="px-4 md:px-6 py-2.5 md:py-3 bg-blue-500/30 text-white border border-white/20 rounded-xl font-bold hover:bg-blue-500/40 transition-all backdrop-blur-sm text-sm md:text-base"
                       >
                         Xem tài liệu
                       </button>
