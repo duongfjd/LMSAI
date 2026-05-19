@@ -1,0 +1,5 @@
+{
+  "name": "AI LMS - Hệ thống Quản lý Học tập Thông minh",
+  "description": "Hệ thống LMS tích hợp AI hỗ trợ tạo quiz, chấm bài, quản lý sinh viên và giảng viên, cùng chatbot hỗ trợ học tập.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+}

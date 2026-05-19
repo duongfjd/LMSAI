@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Global Helper Primitives
+    // ===============================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function email() {
+      return request.auth.token.email.lower();
+    }
+    
+    // Core Admin Override (The "Huy" Privilege)
+    function isHuy() {
+      return isSignedIn() && email() == "huyabcd2004@gmail.com";
+    }
+
+    // ===============================================================
+    // UNIVERSAL READ ACCESS FOR STABILITY
+    // ===============================================================
+    // This recursive match covers ALL documents and subcollections deep-down.
+    // It guarantees that onSnapshot listeners will never fail for lack of read permissions.
+    match /{document=**} {
+      allow read: if isSignedIn();
+    }
+
+    // ===============================================================
+    // SECURE WRITE ACCESS
+    // ===============================================================
+    
+    function isTeacherOrAdmin() {
+      return isSignedIn() && (isHuy() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['teacher', 'admin']);
+    }
+
+    // The Super-Admin (Huy) can write to any document in the entire database.
+    match /{document=**} {
+      allow write: if isHuy();
+    }
+
+    // Individual User Profile writes
+    match /users/{userId} {
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Resources (Teachers/Admins)
+    match /resources/{id} {
+      allow create, delete, update: if isTeacherOrAdmin();
+    }
+
+    // Quizzes (Teachers/Admins)
+    match /quizzes/{id} {
+      allow create, delete, update: if isTeacherOrAdmin();
+    }
+
+    // Assignments
+    match /assignments/{id} {
+      allow create, delete, update: if isTeacherOrAdmin();
+    }
+
+    // Student Quiz Results (Self-Create)
+    match /quizResults/{id} {
+      allow create: if isSignedIn() && (isTeacherOrAdmin() || request.resource.data.studentId == request.auth.uid);
+    }
+
+    // Student Submissions (Self-Create & Self-Update & Teacher-Grade)
+    match /submissions/{id} {
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isSignedIn() && (isTeacherOrAdmin() || resource.data.studentId == request.auth.uid);
+      
+      // Chunks for large file uploads
+      match /chunks/{chunkId} {
+        allow write: if isSignedIn();
+      }
+    }
+
+    // Chat Messages
+    match /chatMessages/{id} {
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isHuy(); // only super admin can modify chat history after creation
+    }
+
+    // Global Collections that need distributed writing
+    match /usageStats/{id} {
+      allow write: if isSignedIn();
+    }
+    
+    match /notifications/{id} {
+      allow write: if isSignedIn();
+    }
+  }
+}

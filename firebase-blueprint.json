@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Thông tin người dùng hệ thống",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "teacher", "student"] },
+        "createdAt": { "type": "number" },
+        "classId": { "type": "string" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Môn học",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "teacherId": { "type": "string" }
+      },
+      "required": ["id", "name", "teacherId"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "Lớp học",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "teacherId": { "type": "string" }
+      },
+      "required": ["id", "name", "subjectId", "teacherId"]
+    },
+    "Resource": {
+      "title": "Resource",
+      "description": "Tài liệu học tập",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "fileType": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title", "fileUrl", "subjectId", "uploadedBy", "createdAt"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Bài kiểm tra trắc nghiệm",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "questions": { "type": "array" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "timeLimit": { "type": "number" }
+      },
+      "required": ["id", "title", "subjectId", "questions", "createdBy", "createdAt"]
+    },
+    "QuizResult": {
+      "title": "QuizResult",
+      "description": "Kết quả bài kiểm tra",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "quizId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "completedAt": { "type": "number" }
+      },
+      "required": ["id", "quizId", "studentId", "score", "totalQuestions", "completedAt"]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Bài tập về nhà",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "classId": { "type": "string" },
+        "dueDate": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title", "subjectId", "classId", "dueDate", "createdAt"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Bài nộp của sinh viên",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "files": { "type": "array" },
+        "grade": { "type": "number" },
+        "feedback": { "type": "string" },
+        "submittedAt": { "type": "number" }
+      },
+      "required": ["id", "assignmentId", "studentId", "studentName", "files", "submittedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Lịch sử trò chuyện với AI Chính trị",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "studentId", "role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "Thông tin cá nhân người dùng" },
+    "/subjects/{id}": { "schema": "Subject", "description": "Danh sách môn học" },
+    "/classes/{id}": { "schema": "Class", "description": "Danh sách lớp học" },
+    "/resources/{id}": { "schema": "Resource", "description": "Kho tài liệu" },
+    "/quizzes/{id}": { "schema": "Quiz", "description": "Danh sách bài trắc nghiệm" },
+    "/quizResults/{id}": { "schema": "QuizResult", "description": "Kết quả thi của sinh viên" },
+    "/assignments/{id}": { "schema": "Assignment", "description": "Danh sách bài tập" },
+    "/submissions/{id}": { "schema": "Submission", "description": "Danh sách bài nộp" },
+    "/chatMessages/{id}": { "schema": "ChatMessage", "description": "Lịch sử trò chuyện với AI" }
+  }
+}
