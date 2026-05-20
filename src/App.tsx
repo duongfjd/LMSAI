@@ -41,7 +41,8 @@ import {
   PartyPopper,
   X,
   Edit2,
-  Menu
+  Menu,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -136,6 +137,162 @@ export default function App() {
     } catch (error) {
       console.error("Delete Quiz Error:", error);
     }
+  };
+
+  const handleQuizExcelUpload = async (quiz: Quiz, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const ExcelJSModule = await import('exceljs');
+      const { saveAs } = await import('file-saver');
+      const { getDocs, query, collection, where } = await import('firebase/firestore');
+
+      const data = await file.arrayBuffer();
+      const ExcelJSClass = ExcelJSModule.default || ExcelJSModule;
+      const workbook = new ExcelJSClass.Workbook();
+      await workbook.xlsx.load(data);
+      const worksheet = workbook.worksheets[0];
+
+      if (!worksheet) {
+        alert("File Excel không có sheet nào!");
+        return;
+      }
+
+      const getCellText = (cell: any) => {
+        if (!cell || cell.value === null || cell.value === undefined) return '';
+        if (typeof cell.value === 'object') {
+          if ('richText' in cell.value && Array.isArray(cell.value.richText)) {
+            return cell.value.richText.map((rt: any) => rt.text).join('');
+          }
+          if ('result' in cell.value) {
+            return cell.value.result !== null && cell.value.result !== undefined ? String(cell.value.result) : '';
+          }
+          if (cell.value instanceof Date) {
+            return cell.value.toISOString();
+          }
+        }
+        return String(cell.value);
+      };
+
+      let headerRowIndex = -1;
+      let nameColIndex = -1;
+      let msvColIndex = -1;
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (headerRowIndex !== -1) return;
+
+        row.eachCell((cell, colNumber) => {
+          const rawText = getCellText(cell);
+          const val = rawText ? rawText.toLowerCase().trim() : '';
+          if (val.includes('họ tên') || val.includes('họ và tên') || val === 'tên') {
+            nameColIndex = colNumber;
+          }
+          if (val.includes('msv') || val.includes('mã sinh viên') || val === 'mã sv' || val.includes('mã sv')) {
+            msvColIndex = colNumber;
+          }
+        });
+
+        if (nameColIndex !== -1 || msvColIndex !== -1) {
+          headerRowIndex = rowNumber;
+        }
+      });
+
+      if (headerRowIndex === -1) {
+        alert("Không tìm thấy hàng tiêu đề chứa cột 'Họ tên' hoặc 'MSV' trong file Excel.");
+        return;
+      }
+
+      const headerRow = worksheet.getRow(headerRowIndex);
+      let quizColIndex = -1;
+
+      headerRow.eachCell((cell, colNumber) => {
+        const rawText = getCellText(cell);
+        const val = rawText ? rawText.toLowerCase().trim() : '';
+        if (val.includes(quiz.title.toLowerCase().trim())) {
+          quizColIndex = colNumber;
+        }
+      });
+
+      if (quizColIndex === -1) {
+        quizColIndex = headerRow.actualCellCount ? headerRow.actualCellCount + 1 : 1;
+        const lastCol = worksheet.actualColumnCount;
+        if (quizColIndex <= lastCol) {
+          quizColIndex = lastCol + 1;
+        }
+
+        const newCell = headerRow.getCell(quizColIndex);
+        newCell.value = quiz.title;
+        if (nameColIndex !== -1) {
+          newCell.style = headerRow.getCell(nameColIndex).style;
+        }
+        headerRow.commit();
+      }
+
+      const resultsSnapshot = await getDocs(query(collection(db, 'quizResults'), where('quizId', '==', quiz.id)));
+      const quizResultsList = resultsSnapshot.docs.map(doc => doc.data() as QuizResult);
+
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const allUsersMap: Record<string, any> = {};
+      usersSnapshot.docs.forEach(doc => {
+        allUsersMap[doc.id] = doc.data();
+      });
+
+      const maxRows = worksheet.rowCount;
+      for (let rowNumber = headerRowIndex + 1; rowNumber <= maxRows; rowNumber++) {
+        const row = worksheet.getRow(rowNumber);
+
+        const nameCell = nameColIndex !== -1 ? row.getCell(nameColIndex) : null;
+        const msvCell = msvColIndex !== -1 ? row.getCell(msvColIndex) : null;
+
+        const rawNameText = nameCell ? getCellText(nameCell) : '';
+        const rawMsvText = msvCell ? getCellText(msvCell) : '';
+
+        const studentName = rawNameText ? rawNameText.toLowerCase().trim() : '';
+        const msv = rawMsvText ? rawMsvText.toLowerCase().trim() : '';
+
+        const targetCell = row.getCell(quizColIndex);
+
+        const sourceStyleCell = nameCell || msvCell;
+        if (sourceStyleCell && sourceStyleCell.style) {
+          targetCell.style = JSON.parse(JSON.stringify(sourceStyleCell.style));
+        }
+
+        const hasContent = studentName || msv;
+        if (hasContent) {
+          const result = quizResultsList.find(r => {
+            const u = allUsersMap[r.studentId];
+            if (!u) return false;
+
+            const uMsv = u.studentId?.trim().toLowerCase();
+            const matchMSV = msv && uMsv === msv;
+
+            const uName = u.displayName?.trim().toLowerCase();
+            const matchName = studentName && uName === studentName;
+
+            return matchMSV || matchName;
+          });
+
+          if (result && result.score !== undefined && result.score !== null) {
+            const scoreTen = Number(((result.score / (result.totalQuestions || 1)) * 10).toFixed(1));
+            targetCell.value = scoreTen;
+          }
+        }
+
+        row.commit();
+      }
+
+      const excelBuffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `Diem_Quiz_${quiz.title}.xlsx`);
+
+      alert("Đã điền điểm bài thi nhanh và tải xuống file!");
+    } catch (error) {
+      console.error("Excel processing error:", error);
+      alert("Lỗi khi xử lý file Excel của bài thi nhanh.");
+    }
+
+    e.target.value = '';
   };
 
   if (loading) {
@@ -471,20 +628,41 @@ export default function App() {
                               </div>
                             )}
 
-                            <div className="flex gap-2">
-                              <button 
-                                onClick={() => setActiveQuiz(q)}
-                                className="flex-1 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold hover:from-red-700 hover:to-red-800 transition-all shadow-md shadow-red-200"
-                              >
-                                Bắt đầu thi
-                              </button>
-                              {(user.role === 'teacher' || user.role === 'admin') && (
+                            <div className="flex flex-col gap-3 w-full">
+                              <div className="flex gap-2">
                                 <button 
-                                  onClick={() => setActiveManageQuiz(q)}
-                                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                                  onClick={() => setActiveQuiz(q)}
+                                  className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl font-bold hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-md shadow-emerald-200"
                                 >
-                                  Quản lý
+                                  Bắt đầu thi
                                 </button>
+                                {(user.role === 'teacher' || user.role === 'admin') && (
+                                  <button 
+                                    onClick={() => setActiveManageQuiz(q)}
+                                    className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                                  >
+                                    Quản lý
+                                  </button>
+                                )}
+                              </div>
+
+                              {(user.role === 'teacher' || user.role === 'admin') && (
+                                <div className="relative w-full">
+                                  <input
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={(e) => handleQuizExcelUpload(q, e)}
+                                    className="hidden"
+                                    id={`quiz-excel-${q.id}`}
+                                  />
+                                  <label
+                                    htmlFor={`quiz-excel-${q.id}`}
+                                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-100 cursor-pointer transition-colors shadow-sm"
+                                    title="Tải lên file Excel để điền điểm tự động"
+                                  >
+                                    <Upload className="w-4 h-4" /> Điền điểm Excel
+                                  </label>
+                                </div>
                               )}
                             </div>
                           </div>

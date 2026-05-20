@@ -407,7 +407,7 @@ export default function AssignmentManager() {
         // Always copy style (borders, alignments, etc.) for body cells regardless of content
         const sourceStyleCell = nameCell || msvCell;
         if (sourceStyleCell && sourceStyleCell.style) {
-           targetCell.style = sourceStyleCell.style;
+           targetCell.style = JSON.parse(JSON.stringify(sourceStyleCell.style));
         }
 
         const hasContent = studentName || msv;
